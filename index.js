@@ -19,31 +19,34 @@ docker.getEvents(function (err, stream) {
   stream.on("data", async (chunk) => {
     if (!chunk) return;
     const event = JSON.parse(chunk.toString());
-    const container = docker.getContainer(event.id);
-    const containerInfo = await container.inspect();
 
-    const containerName = containerInfo.Name.substring(1);
-    const ipAddress = containerInfo.NetworkSettings.IPAddress;
+    if (event.Type === "container" && event.Action === "start") {
+      const container = docker.getContainer(event.id);
+      const containerInfo = await container.inspect();
 
-    let defaultPort = null;
-    const exposedPort = Object.keys(containerInfo.Config.ExposedPorts);
+      const containerName = containerInfo.Name.substring(1);
+      const ipAddress = containerInfo.NetworkSettings.IPAddress;
 
-    if (exposedPort && exposedPort.length > 0) {
-      const [port, type] = exposedPort[0].split("/");
+      let defaultPort = null;
+      const exposedPorts = containerInfo.Config.ExposedPorts;
 
-      if (type == "tcp") {
-        defaultPort = port;
+      if (exposedPorts && Object.keys(exposedPorts).length > 0) {
+        const [port, type] = Object.keys(exposedPorts)[0].split("/");
+
+        if (type === "tcp") {
+          defaultPort = port;
+        }
       }
-    }
 
-    console.log(
-      `Registering ${containerName}.localhost --> http://${ipAddress}:${defaultPort}`
-    );
-    containerIpAddressMapper.set(containerName, {
-      containerName,
-      ipAddress,
-      defaultPort,
-    });
+      console.log(
+        `Registering ${containerName}.localhost --> http://${ipAddress}:${defaultPort}`
+      );
+      containerIpAddressMapper.set(containerName, {
+        containerName,
+        ipAddress,
+        defaultPort,
+      });
+    }
   });
 });
 
