@@ -4,6 +4,47 @@ const Docker = require("dockerode");
 
 const docker = new Docker({ socketPath: "/var/run/docker.sock" });
 
+// container IP address mapping
+const containerIpAddressMapper = new Map();
+
+// Event Listeners
+docker.getEvents(function (err, stream) {
+  if (err) {
+    console.error("Error getting events", err);
+    return;
+  }
+
+  stream.on("data", async (chunk) => {
+    if (!chunk) return;
+    const event = JSON.parse(chunk.toString());
+    const container = docker.getContainer(event.id);
+    const containerInfo = await container.inspect();
+
+    const containerName = containerInfo.Name.substring(1);
+    const ipAddress = containerInfo.NetworkSettings.IPAddress;
+
+    let defaultPort = null;
+    const exposedPort = Object.keys(containerInfo.Config.ExposedPorts);
+
+    if (exposedPort && exposedPort.length > 0) {
+      const [port, type] = exposedPort[0].split("/");
+
+      if (type == "tcp") {
+        defaultPort = port;
+      }
+    }
+
+    console.log(
+      `Registering ${containerName}.localhost --> http://${ipAddress}:${defaultPort}`
+    );
+    containerIpAddressMapper.set(containerName, {
+      containerName,
+      ipAddress,
+      defaultPort,
+    });
+  });
+});
+
 // management api
 const managementApi = express();
 managementApi.use(express.json());
