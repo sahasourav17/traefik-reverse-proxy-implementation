@@ -8,6 +8,8 @@ Traditionally, when creating Docker containers, we need to manually map containe
 
 ### Solution:
 
+![Solution Overview](./images/traefik_reverse_proxy_implementaion_flow.png)
+
 Our approach eliminates the need for manual port mapping when creating containers. Instead, we utilize Docker's internal networking where each container gets its own IP address. We've implemented a system that:
 
 1. Listens for Docker events to automatically detect when new containers are created.
